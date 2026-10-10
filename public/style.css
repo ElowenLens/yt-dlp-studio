@@ -55,3 +55,8 @@
 #pick-cookiesFile:hover{border-color:var(--blue);color:var(--blue);background:var(--tint)}
 /* 修复双框：folder-input 容器聚焦时已画 ring，内部裸输入框不再自画聚焦框 */
 .folder-input input:focus{box-shadow:none!important;outline:none;border:0}
+/* 任务详情弹窗中的来源链接 */
+.log-url{font-size:12px;color:var(--muted);margin:-6px 0 10px;word-break:break-all}
+.log-url a{color:var(--blue);text-decoration:none}
+.log-url a:hover{text-decoration:underline}
+.log-url:empty{display:none}
