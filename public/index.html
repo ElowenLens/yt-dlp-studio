@@ -67,4 +67,5 @@
 </div>
 <div id="toast" role="status" hidden></div>
 <dialog id="log-dialog"><div class="dialog-heading"><h2>任务详情</h2><button id="close-dialog" class="icon-button" aria-label="关闭详情" data-icon="close"></button></div><p id="log-title"></p><p id="log-url" class="log-url"></p><pre id="log-content"></pre><div id="log-files"></div></dialog>
+<dialog id="list-dialog"><div class="dialog-heading"><h2>这个链接包含一个播放列表</h2><button id="list-close" class="icon-button" aria-label="关闭" data-icon="close"></button></div><p class="list-msg">链接里同时带有视频（v）和列表（list）参数，请选择下载范围：</p><div class="list-options"><button class="list-option" id="list-single"><strong>仅下载这一个视频</strong><small>忽略列表参数，只下载链接当前指向的视频</small></button><button class="list-option" id="list-playlist"><strong>下载整个播放列表</strong><small>先解析列表清单，再拆成独立任务逐个下载</small></button></div></dialog>
 </body></html>
