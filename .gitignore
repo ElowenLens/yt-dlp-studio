@@ -1,0 +1,24 @@
+# ===== 运行时二进制（体积超 GitHub 100MB 限制，可从官方发布页重新获取）=====
+bin/
+*Studio.exe
+
+# ===== 用户下载的视频 =====
+downloads/
+*.mp4
+*.webm
+*.part
+*.ytdl
+
+# ===== 用户数据与登录凭据（绝不上传）=====
+data/
+youtube.com_cookies.txt
+cookies*.txt
+
+# ===== 日志与临时文件 =====
+*.log
+*.tmp
+
+# ===== 系统与编辑器杂物 =====
+Thumbs.db
+Desktop.ini
+.workbuddy/
