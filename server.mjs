@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { spawn, execFile } from 'node:child_process';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { promisify } from 'node:util';
-import { validateUrl, normalizeOptions, buildArgs, advancedDefaults } from './lib/options.mjs';
+import { validateUrl, cleanWatchUrl, normalizeOptions, buildArgs, advancedDefaults } from './lib/options.mjs';
 import { startWindowsTray } from './lib/tray.mjs';
 import { normalizeTheme } from './lib/appearance.mjs';
 import { resolveDownloadTools } from './lib/dependencies.mjs';
@@ -88,7 +88,7 @@ const server=http.createServer(async(req,res)=>{
         if(updating)throw new Error('下载引擎正在更新，请稍后重试');
         if(!(await environment()).ready)throw new Error('下载组件尚未就绪，请先运行「安装下载组件.cmd」');
         const urls=String(b.urls||'').split(/\r?\n/).map(x=>x.trim()).filter(Boolean);if(!urls.length||urls.length>500)throw new Error('每次请输入 1–500 个链接，每行一个');
-        const validated=urls.map(validateUrl),options=normalizeOptions(b.options,settings.outputDir);
+        const validated=urls.map(u=>validateUrl(cleanWatchUrl(u))),options=normalizeOptions(b.options,settings.outputDir);
         const added=validated.map(url=>({id:randomUUID(),url,title:new URL(url).hostname,status:'queued',progress:0,files:[],logs:[],createdAt:new Date().toISOString(),options,mode:options.mode,outputDir:options.outputDir,playlist:options.advanced.enabled&&options.advanced.playlist}));
         jobs.push(...added);persist();emit();schedule();return json(res,{ids:added.map(j=>j.id)});
       }
