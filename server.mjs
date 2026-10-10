@@ -9,6 +9,8 @@ import { validateUrl, normalizeOptions, buildArgs, advancedDefaults } from './li
 import { startWindowsTray } from './lib/tray.mjs';
 import { normalizeTheme } from './lib/appearance.mjs';
 import { resolveDownloadTools } from './lib/dependencies.mjs';
+// 清理宿主环境注入的 NODE_OPTIONS/NODE_PATH，防止污染 yt-dlp 的 node 解题器（n challenge 需要 node 干净启动）
+for (const k of ['NODE_OPTIONS','NODE_PATH']) delete process.env[k];
 const exec = promisify(execFile);
 const root = path.dirname(fileURLToPath(import.meta.url));
 const dataDir = process.env.YTDLP_DATA_DIR || path.join(root, 'data');
