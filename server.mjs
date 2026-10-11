@@ -24,7 +24,7 @@ let settings = { theme: 'light', compact: false, outputDir: path.join(root,'down
 settings.theme = normalizeTheme(settings.theme);
 delete settings.glass;
 let jobs = read('jobs.json', []).map(j => ['running','queued','processing','canceling'].includes(j.status) ? {...j,status:'interrupted',speed:null,eta:null} : j);
-const clients = new Set(); let active = null, inspecting = false, updating = false, envCache = null;
+const clients = new Set(); const active = new Map(); let inspecting = false, updating = false, envCache = null;
 const publicJobs = () => jobs.map(({ options, ...j }) => j);
 const emit = () => { const value = `data: ${JSON.stringify(publicJobs())}\n\n`; for (const c of clients) c.write(value); };
 const persist = () => save('jobs.json',jobs);
@@ -34,13 +34,15 @@ function stopChild(child) {
   else child.kill('SIGTERM');
 }
 function schedule() {
-  if (active || updating) return;
-  const job = jobs.find(j=>j.status==='queued'); if (!job) return;
-  try { fs.mkdirSync(job.options.outputDir,{recursive:true}); } catch (e) { job.status='failed';job.error=`无法创建保存目录：${e.message}`;persist();emit();schedule();return; }
-  job.status='running'; job.error=''; job.speed=null; job.eta=null;
-  const child = spawn(engine,buildArgs(job.url,job.options,{binDir}),{windowsHide:true,cwd:root});
-  child.stdout.setEncoding('utf8');child.stderr.setEncoding('utf8');
-  active={child,id:job.id};emit();persist();
+  if (updating) return;
+  const max = Math.max(1, Math.min(5, Number(settings.concurrency) || 1));
+  while (active.size < max) {
+    const job = jobs.find(j=>j.status==='queued'); if (!job) return;
+    try { fs.mkdirSync(job.options.outputDir,{recursive:true}); } catch (e) { job.status='failed';job.error=`无法创建保存目录：${e.message}`;persist();emit();continue; }
+    job.status='running'; job.error=''; job.speed=null; job.eta=null;
+    const child = spawn(engine,buildArgs(job.url,job.options,{binDir}),{windowsHide:true,cwd:root});
+    child.stdout.setEncoding('utf8');child.stderr.setEncoding('utf8');
+    active.set(job.id,{child});emit();persist();
   let out='',err='',done=false;
   const line = value => {
     if (!value) return;
@@ -55,8 +57,9 @@ function schedule() {
   };
   child.stdout.on('data',b=>{out+=b.toString('utf8');const lines=out.split(/\r?\n/);out=lines.pop();lines.forEach(line);});
   child.stderr.on('data',b=>{err+=b.toString('utf8');const lines=err.split(/\r?\n/);err=lines.pop();lines.forEach(line);});
-  const finish = (code,error) => { if(done)return;done=true;if(out)line(out);if(err)line(err);if(job.status==='canceling')job.status='canceled';else if(code===0)job.status='completed';else if(job.files.length){job.status='completed';job.warning='部分内容未能下载（已自动跳过），其余文件已保存，详情见任务日志';}else job.status='failed'; if(error)job.error=error.message;if(job.status==='failed'&&!job.error)job.error='下载进程异常结束，请查看日志';if(job.status==='completed')job.progress=100;job.speed=null;job.eta=null;job.finishedAt=new Date().toISOString();active=null;persist();emit();schedule(); };
+  const finish = (code,error) => { if(done)return;done=true;if(out)line(out);if(err)line(err);if(job.status==='canceling')job.status='canceled';else if(code===0)job.status='completed';else if(job.files.length){job.status='completed';job.warning='部分内容未能下载（已自动跳过），其余文件已保存，详情见任务日志';}else job.status='failed'; if(error)job.error=error.message;if(job.status==='failed'&&!job.error)job.error='下载进程异常结束，请查看日志';if(job.status==='completed')job.progress=100;job.speed=null;job.eta=null;job.finishedAt=new Date().toISOString();active.delete(job.id);persist();emit();schedule(); };
   child.on('error',e=>finish(-1,e)); child.on('close',code=>finish(code));
+  }
 }
 async function environment(refresh=false) {
   if(envCache&&!refresh)return envCache;
@@ -77,7 +80,7 @@ const server=http.createServer(async(req,res)=>{
       if(u.pathname==='/api/events'&&req.method==='GET'){res.writeHead(200,{'Content-Type':'text/event-stream','Cache-Control':'no-cache','Connection':'keep-alive'});clients.add(res);res.write(`data: ${JSON.stringify(publicJobs())}\n\n`);req.on('close',()=>clients.delete(res));return;}
       if(req.method!=='POST')return json(res,{error:'不支持此操作'},405);
       const b=await body(req);
-      if(u.pathname==='/api/settings'){const o=normalizeOptions({mode:b.mode,quality:b.quality,videoFormat:b.videoFormat,audioFormat:b.audioFormat,outputDir:b.outputDir,advanced:b.advanced},settings.outputDir);settings={mode:o.mode,quality:o.quality,videoFormat:o.videoFormat,audioFormat:o.audioFormat,outputDir:o.outputDir,advanced:o.advanced,theme:normalizeTheme(b.theme??settings.theme),compact:b.compact===true};save('settings.json',settings);return json(res,{settings});}
+      if(u.pathname==='/api/settings'){const o=normalizeOptions({mode:b.mode,quality:b.quality,videoFormat:b.videoFormat,audioFormat:b.audioFormat,outputDir:b.outputDir,advanced:b.advanced},settings.outputDir);settings={mode:o.mode,quality:o.quality,videoFormat:o.videoFormat,audioFormat:o.audioFormat,outputDir:o.outputDir,advanced:o.advanced,theme:normalizeTheme(b.theme??settings.theme),compact:b.compact===true,concurrency:Math.max(1,Math.min(5,Math.round(Number(b.concurrency??settings.concurrency)||1)))};save('settings.json',settings);schedule();return json(res,{settings});}
       if(u.pathname==='/api/environment')return json(res,await environment(true));
       if(u.pathname==='/api/inspect') {
         if(updating)throw new Error('下载引擎正在更新，请稍后重试');if(inspecting)throw new Error('已有链接正在解析，请稍候');
@@ -94,7 +97,7 @@ const server=http.createServer(async(req,res)=>{
       }
       if(u.pathname==='/api/job-action') {
         const job=jobs.find(j=>j.id===b.id);if(!job)throw new Error('任务不存在');
-        if(b.action==='cancel'){if(active?.id===job.id){job.status='canceling';stopChild(active.child);}else if(job.status==='queued'){job.status='canceled';}}
+        if(b.action==='cancel'){const entry=active.get(job.id);if(entry){job.status='canceling';stopChild(entry.child);}else if(job.status==='queued'){job.status='canceled';}}
         else if(b.action==='retry'){if(!['failed','canceled','interrupted'].includes(job.status))throw new Error('此任务无需重试');job.status='queued';job.progress=0;job.error='';job.logs=[];delete job.finishedAt;}
         else if(b.action==='remove'){if(['queued','running','processing','canceling'].includes(job.status))throw new Error('请先取消任务');jobs=jobs.filter(j=>j!==job);}
         else throw new Error('未知操作');persist();emit();schedule();return json(res,{ok:true});
@@ -114,7 +117,7 @@ const server=http.createServer(async(req,res)=>{
       if(u.pathname==='/api/pick-folder') {const {stdout}=await exec('powershell.exe',['-NoProfile','-STA','-ExecutionPolicy','Bypass','-File',path.join(root,'scripts','pick-folder.ps1')],{windowsHide:true,timeout:120000});return json(res,{path:stdout.trim()});}
       if(u.pathname==='/api/pick-file') {const {stdout}=await exec('powershell.exe',['-NoProfile','-STA','-ExecutionPolicy','Bypass','-File',path.join(root,'scripts','pick-file.ps1')],{windowsHide:true,timeout:120000});return json(res,{path:stdout.trim()});}
       if(u.pathname==='/api/update') {
-        if(active||inspecting||updating)throw new Error('请等待下载或解析结束再更新');
+        if(active.size||inspecting||updating)throw new Error('请等待下载或解析结束再更新');
         updating=true;
         try {
           // Never modify a system-owned engine; install an app-owned update instead.
@@ -125,7 +128,7 @@ const server=http.createServer(async(req,res)=>{
           return json(res,{message:stdout,environment:await environment(true)});
         } finally {updating=false;schedule();}
       }
-      if(u.pathname==='/api/shutdown') {if(active||jobs.some(j=>j.status==='queued')||inspecting||updating)throw new Error('请先结束正在进行的下载、解析或更新');json(res,{ok:true});setTimeout(()=>{persist();process.exit(0);},200);return;}
+      if(u.pathname==='/api/shutdown') {if(active.size||jobs.some(j=>j.status==='queued')||inspecting||updating)throw new Error('请先结束正在进行的下载、解析或更新');json(res,{ok:true});setTimeout(()=>{persist();process.exit(0);},200);return;}
       return json(res,{error:'接口不存在'},404);
     }
     const files={'/':'index.html','/app.js':'app.js','/style.css':'style.css'};
@@ -141,4 +144,4 @@ server.listen(port,'127.0.0.1',()=>{
 });
 server.on('error',e=>{console.error(e.code==='EADDRINUSE'?`端口 ${port} 已被占用。请打开 ${origin} 或设置 PORT。`:e);process.exitCode=1;});
 setInterval(()=>{for(const c of clients)c.write(': heartbeat\n\n');},20000).unref();
-process.on('SIGINT',()=>{if(active)stopChild(active.child);persist();process.exit(0);});
+process.on('SIGINT',()=>{for(const {child} of active.values())stopChild(child);persist();process.exit(0);});
