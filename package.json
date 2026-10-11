@@ -1,0 +1,7 @@
+{
+  "name": "yt-dlp-studio",
+  "version": "1.2.0",
+  "private": true,
+  "type": "module",
+  "description": "yt-dlp Studio - 本地视频下载工具"
+}

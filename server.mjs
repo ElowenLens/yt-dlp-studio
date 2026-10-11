@@ -13,6 +13,7 @@ import { resolveDownloadTools } from './lib/dependencies.mjs';
 for (const k of ['NODE_OPTIONS','NODE_PATH']) delete process.env[k];
 const exec = promisify(execFile);
 const root = path.dirname(fileURLToPath(import.meta.url));
+const appVersion = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8')).version;
 const dataDir = process.env.YTDLP_DATA_DIR || path.join(root, 'data');
 let {binDir, engine, externalEngine} = resolveDownloadTools(root);
 const port = Number(process.env.PORT || 47831), origin = `http://127.0.0.1:${port}`;
@@ -74,7 +75,7 @@ const server=http.createServer(async(req,res)=>{
   if(req.headers.host!==`127.0.0.1:${port}` || (req.headers.origin&&req.headers.origin!==origin))return json(res,{error:'仅允许本机应用访问'},403);
   const u=new URL(req.url,origin);
   try {
-    if(u.pathname==='/api/bootstrap'&&req.method==='GET')return json(res,{app:'yt-dlp-studio',pid:process.pid,token,settings,jobs:publicJobs(),environment:await environment()});
+    if(u.pathname==='/api/bootstrap'&&req.method==='GET')return json(res,{app:'yt-dlp-studio',version:appVersion,pid:process.pid,token,settings,jobs:publicJobs(),environment:await environment()});
     if(u.pathname.startsWith('/api/')) {
       if((req.headers['x-app-token']||u.searchParams.get('token'))!==token)return json(res,{error:'会话已过期，请刷新页面'},403);
       if(u.pathname==='/api/events'&&req.method==='GET'){res.writeHead(200,{'Content-Type':'text/event-stream','Cache-Control':'no-cache','Connection':'keep-alive'});clients.add(res);res.write(`data: ${JSON.stringify(publicJobs())}\n\n`);req.on('close',()=>clients.delete(res));return;}
