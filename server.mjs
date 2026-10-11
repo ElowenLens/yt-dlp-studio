@@ -30,6 +30,26 @@ const publicJobs = () => jobs.map(({ options, ...j }) => j);
 const emit = () => { const value = `data: ${JSON.stringify(publicJobs())}\n\n`; for (const c of clients) c.write(value); };
 const persist = () => save('jobs.json',jobs);
 const log = (job,line) => { job.logs.push(line.slice(0,4000)); job.logs = job.logs.slice(-100); };
+function writeNfoFiles(job) {
+  let count = 0;
+  try {
+    const esc = s => String(s ?? '').replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+    const walk = dir => fs.readdirSync(dir, { withFileTypes: true, recursive: true }).filter(e => e.isFile() && e.name.toLowerCase().endsWith('.info.json'));
+    for (const ent of walk(job.outputDir)) {
+      try {
+        const full = path.join(ent.parentPath || ent.path, ent.name);
+        if (fs.existsSync(full.replace(/\.info\.json$/i, '.nfo'))) continue;
+        const info = JSON.parse(fs.readFileSync(full, 'utf8'));
+        const date = String(info.upload_date || '');
+        const tags = Array.isArray(info.tags) ? info.tags.slice(0, 10) : [];
+        const xml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<movie>\n  <title>${esc(info.title)}</title>\n  <plot>${esc(info.description)}</plot>\n  <premiered>${date ? `${date.slice(0,4)}-${date.slice(4,6)}-${date.slice(6,8)}` : ''}</premiered>\n  <year>${date.slice(0,4)}</year>\n  <studio>${esc(info.uploader || info.channel)}</studio>\n  <uniqueid type="youtube" default="true">${esc(info.id)}</uniqueid>\n  <thumb>${esc(info.thumbnail)}</thumb>\n${tags.map(t => `  <tag>${esc(t)}</tag>`).join('\n')}\n</movie>\n`;
+        fs.writeFileSync(full.replace(/\.info\.json$/i, '.nfo'), xml);
+        count++;
+      } catch {}
+    }
+    if (count) log(job, `已生成 ${count} 个 NFO 元数据文件（供 Emby / Jellyfin 识别）`);
+  } catch (e) { log(job, `生成 NFO 失败：${e.message}`); }
+}
 function stopChild(child) {
   if (process.platform === 'win32') { const killer = spawn('taskkill',['/pid',String(child.pid),'/t','/f'],{windowsHide:true}); killer.on('error',()=>child.kill()); }
   else child.kill('SIGTERM');
@@ -58,7 +78,7 @@ function schedule() {
   };
   child.stdout.on('data',b=>{out+=b.toString('utf8');const lines=out.split(/\r?\n/);out=lines.pop();lines.forEach(line);});
   child.stderr.on('data',b=>{err+=b.toString('utf8');const lines=err.split(/\r?\n/);err=lines.pop();lines.forEach(line);});
-  const finish = (code,error) => { if(done)return;done=true;if(out)line(out);if(err)line(err);if(job.status==='canceling')job.status='canceled';else if(code===0)job.status='completed';else if(job.files.length){job.status='completed';job.warning='部分内容未能下载（已自动跳过），其余文件已保存，详情见任务日志';}else job.status='failed'; if(error)job.error=error.message;if(job.status==='failed'&&!job.error)job.error='下载进程异常结束，请查看日志';if(job.status==='completed')job.progress=100;job.speed=null;job.eta=null;job.finishedAt=new Date().toISOString();active.delete(job.id);persist();emit();schedule(); };
+  const finish = (code,error) => { if(done)return;done=true;if(out)line(out);if(err)line(err);if(job.status==='canceling')job.status='canceled';else if(code===0)job.status='completed';else if(job.files.length){job.status='completed';job.warning='部分内容未能下载（已自动跳过），其余文件已保存，详情见任务日志';}else job.status='failed'; if(error)job.error=error.message;if(job.status==='failed'&&!job.error)job.error='下载进程异常结束，请查看日志';if(job.status==='completed')job.progress=100;if(job.status==='completed'&&job.mode==='video'&&job.options?.advanced?.infoJson)writeNfoFiles(job);job.speed=null;job.eta=null;job.finishedAt=new Date().toISOString();active.delete(job.id);persist();emit();schedule(); };
   child.on('error',e=>finish(-1,e)); child.on('close',code=>finish(code));
   }
 }
