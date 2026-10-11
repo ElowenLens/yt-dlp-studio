@@ -68,3 +68,6 @@
 .list-option strong{font-size:12px;font-weight:500;color:var(--ink)}
 .list-option small{font-size:10px;color:var(--muted);line-height:1.6}
 @media(max-width:760px){.list-options{grid-template-columns:1fr}}
+/* 快捷开关区的封面格式下拉框 */
+.quick-format{margin-top:6px;font-size:11px;padding:4px 8px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink)}
+.quick-format:focus{outline:none;border-color:#72b2fc}

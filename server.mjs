@@ -77,7 +77,7 @@ const server=http.createServer(async(req,res)=>{
       if(u.pathname==='/api/events'&&req.method==='GET'){res.writeHead(200,{'Content-Type':'text/event-stream','Cache-Control':'no-cache','Connection':'keep-alive'});clients.add(res);res.write(`data: ${JSON.stringify(publicJobs())}\n\n`);req.on('close',()=>clients.delete(res));return;}
       if(req.method!=='POST')return json(res,{error:'不支持此操作'},405);
       const b=await body(req);
-      if(u.pathname==='/api/settings'){const o=normalizeOptions({outputDir:b.outputDir,advanced:b.advanced},settings.outputDir);settings={outputDir:o.outputDir,advanced:o.advanced,theme:normalizeTheme(b.theme??settings.theme),compact:b.compact===true};save('settings.json',settings);return json(res,{settings});}
+      if(u.pathname==='/api/settings'){const o=normalizeOptions({mode:b.mode,quality:b.quality,videoFormat:b.videoFormat,audioFormat:b.audioFormat,outputDir:b.outputDir,advanced:b.advanced},settings.outputDir);settings={mode:o.mode,quality:o.quality,videoFormat:o.videoFormat,audioFormat:o.audioFormat,outputDir:o.outputDir,advanced:o.advanced,theme:normalizeTheme(b.theme??settings.theme),compact:b.compact===true};save('settings.json',settings);return json(res,{settings});}
       if(u.pathname==='/api/environment')return json(res,await environment(true));
       if(u.pathname==='/api/inspect') {
         if(updating)throw new Error('下载引擎正在更新，请稍后重试');if(inspecting)throw new Error('已有链接正在解析，请稍候');
