@@ -1,6 +1,6 @@
 {
   "name": "yt-dlp-studio",
-  "version": "1.2.5",
+  "version": "1.2.6",
   "private": true,
   "type": "module",
   "description": "yt-dlp Studio - 本地视频下载工具"
