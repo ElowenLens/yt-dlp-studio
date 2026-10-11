@@ -4,18 +4,12 @@
 
 ## 下载与安装
 
-从 [Releases](https://github.com/Aliww2468/yt-dlp-studio/releases/latest) 下载 Windows x64 版本：
+从 [Releases](https://github.com/ElowenLens/yt-dlp-studio/releases/latest) 下载源码包并解压到可写目录：
 
-- **Setup.exe**：轻量联网安装器，不内置 .NET、Node.js、yt-dlp、FFmpeg 等前置组件。安装时检查并复用系统中可用的组件，缺少时从官方来源下载，显示检查结果和下载进度。创建开始菜单快捷方式，可从 Windows 设置卸载。卸载保留下载文件、个人设置及系统共享组件。
-- **portable.zip**：自带 .NET、Node.js、yt-dlp、FFmpeg 和 FFprobe，完整解压到可写目录后运行；仍使用系统 WebView2 Runtime。
+- 运行 **安装下载组件.cmd**：从 yt-dlp 与 FFmpeg 官方 Releases 获取 yt-dlp.exe、FFmpeg、FFprobe 到 bin 目录；Node.js 要求 22+ x64，可使用系统安装的 Node.js 或放入 bin。
+- 双击 **启动** 打开软件；便携版组件齐全时无需联网。
 
-适用于 Windows 10/11 x64。校验值见 SHA256SUMS.txt。安装器需要联网补齐缺少的组件；安装 .NET 等系统组件时 Windows 可能请求管理员授权，取消或下载失败后可重新运行安装器重试。
-
-## 启动
-
-双击 **yt-dlp Studio.exe**。原来的 **启动.vbs** 和 **启动.cmd** 也使用同一启动检查。
-
-这是 Windows x64 桌面应用，使用独立桌面窗口，无需打开浏览器或命令行。需系统已安装 Microsoft Edge WebView2 Runtime。复制到其他电脑时请保留整个软件目录，不要只复制 EXE；目录需要有写入权限。缺少 WebView2 时可从 [Microsoft 官方页面](https://developer.microsoft.com/microsoft-edge/webview2/) 安装 Evergreen Runtime。
+适用于 Windows 10/11 x64。这是本机桌面应用，使用独立桌面窗口，无需打开浏览器或命令行。需系统已安装 Microsoft Edge WebView2 Runtime。复制到其他电脑时请保留整个软件目录，不要只复制 EXE；目录需要有写入权限。缺少 WebView2 时可从 [Microsoft 官方页面](https://developer.microsoft.com/microsoft-edge/webview2/) 安装 Evergreen Runtime。
 
 - 重复启动 EXE：提示「软件已在运行」并取消本次启动；不再打开第二个窗口或后台。同一 Windows 登录会话中的安装版、便携版及不同目录共用单实例锁。已有窗口可从任务栏或托盘打开。
 - 最小化或点击关闭：收起到托盘，下载继续运行。
